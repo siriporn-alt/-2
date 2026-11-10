@@ -160,21 +160,45 @@
         <!-- Student View Section -->
         <main class="bg-white/95 backdrop-blur-md rounded-3xl p-4 md:p-8 shadow-fun-lg border-4 border-white mb-10">
             
-            <!-- Search Bar -->
-            <div class="relative max-w-2xl mx-auto mb-8">
+            <!-- Search Bar + Classroom Filter -->
+            <div class="max-w-3xl mx-auto mb-8">
                 <div class="relative flex items-center">
-                    <input type="text" id="searchInput" oninput="filterStudents()" 
-                        placeholder="พิมพ์ชื่อ, นามสกุล หรือ ชั้นเรียน (เช่น ป.5/1)..." 
+                    <input type="text" id="searchInput" oninput="filterStudents()"
+                        placeholder="พิมพ์ชื่อ นามสกุล รหัสนักเรียน หรืออีเมล..."
                         class="w-full pl-14 pr-12 py-4 text-lg md:text-xl font-medium rounded-2xl border-4 border-sky-300 focus:border-sky-500 focus:outline-none shadow-inner transition-colors bg-sky-50/50">
                     <div class="absolute left-4 text-sky-400 text-2xl pointer-events-none">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </div>
-                    <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-4 text-gray-400 hover:text-red-500 text-xl p-1">
+                    <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-4 text-gray-400 hover:text-red-500 text-xl p-1" title="ล้างคำค้นหาและห้องเรียน">
                         <i class="fa-solid fa-circle-xmark"></i>
                     </button>
                 </div>
+
+                <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <label for="gradeFilter" class="shrink-0 font-bold text-slate-600 flex items-center gap-2">
+                        <i class="fa-solid fa-school text-emerald-500"></i> เลือกห้องเรียน:
+                    </label>
+                    <select id="gradeFilter" onchange="filterStudents()"
+                        class="w-full sm:flex-1 px-4 py-3 text-base font-semibold rounded-xl border-2 border-emerald-300 bg-emerald-50 text-slate-700 focus:border-emerald-500 focus:outline-none">
+                        <option value="">🍄 แสดงทุกห้องเรียน</option>
+			<option value="ป.5/1">ชั้น ป.5/1</option>
+                        <option value="ป.5/2">ชั้น ป.5/2</option>
+                        <option value="ป.5/3">ชั้น ป.5/3</option>
+                        <option value="ป.5/4">ชั้น ป.5/4</option>
+                        <option value="ป.5/5">ชั้น ป.5/5</option>
+                        <option value="ป.5/6">ชั้น ป.5/6</option>
+
+                        <option value="ป.6/1">ชั้น ป.6/1</option>
+                        <option value="ป.6/2">ชั้น ป.6/2</option>
+                        <option value="ป.6/3">ชั้น ป.6/3</option>
+                        <option value="ป.6/4">ชั้น ป.6/4</option>
+                        <option value="ป.6/5">ชั้น ป.6/5</option>
+                        <option value="ป.6/6">ชั้น ป.6/6</option>
+                    </select>
+                </div>
                 <p class="text-xs md:text-sm text-gray-500 mt-2 ml-3 flex items-center gap-1">
-                    <i class="fa-solid fa-lightbulb text-amber-500"></i> ตัวอย่างการค้นหา: <span>"สมชาย"</span>, <span>"ป.1/1"</span> หรือ <span>"STD-001"</span>
+                    <i class="fa-solid fa-lightbulb text-amber-500"></i>
+                    พิมพ์ค้นหาชื่อ/นามสกุล หรือเลือกห้อง ป.6/1–ป.6/6 เพื่อกรองรายชื่อได้ทันที
                 </p>
             </div>
 
@@ -868,10 +892,10 @@
         const TEACHER_PASS = "1234";
 
         // Load data on start.
-        // Version 2 forces a one-time migration from the old 5-student cache
-        // to the complete built-in roster (233 students). After migration,
-        // normal add/edit/delete operations are preserved.
-        const STUDENT_DATA_VERSION = "2";
+        // Version 3 refreshes the built-in student roster once.
+        // Note: first load after this update replaces this browser's saved roster
+        // with initialStudents. Back up any teacher-made changes before publishing.
+        const STUDENT_DATA_VERSION = "3";
 
         window.onload = function() {
             const savedVersion = localStorage.getItem('mushroom_students_version');
@@ -979,26 +1003,33 @@
         // Live Filter
         function filterStudents() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const selectedGrade = document.getElementById('gradeFilter').value;
             const clearBtn = document.getElementById('clearSearchBtn');
-            
-            if (query.length > 0) {
+
+            if (query.length > 0 || selectedGrade !== '') {
                 clearBtn.classList.remove('hidden');
             } else {
                 clearBtn.classList.add('hidden');
             }
 
-            const filtered = students.filter(st => 
-                st.name.toLowerCase().includes(query) ||
-                st.id.toLowerCase().includes(query) ||
-                st.grade.toLowerCase().includes(query) ||
-                st.email.toLowerCase().includes(query)
-            );
+            // Apply both filters together: selected classroom AND typed keyword.
+            const filtered = students.filter(st => {
+                const matchesGrade = !selectedGrade || st.grade === selectedGrade;
+                const name = String(st.name || '').toLowerCase();
+                const id = String(st.id || '').toLowerCase();
+                const grade = String(st.grade || '').toLowerCase();
+                const email = String(st.email || '').toLowerCase();
+                const matchesQuery = !query || name.includes(query) || id.includes(query) ||
+                    grade.includes(query) || email.includes(query);
+                return matchesGrade && matchesQuery;
+            });
 
             renderStudentGrid(filtered);
         }
 
         function clearSearch() {
             document.getElementById('searchInput').value = '';
+            document.getElementById('gradeFilter').value = '';
             filterStudents();
         }
 
